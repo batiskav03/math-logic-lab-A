@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class Main {
     public static void main(String[] args) {
-        Pattern regEx = Pattern.compile("[a-zA-Z’0-9]");
+        //Pattern regEx = Pattern.compile("[a-zA-Z’0-9]");
         Deque<Character> stack = new ArrayDeque<>();
         Deque<String>  newLine = new LinkedList<>();
         Scanner scanner = new Scanner(System.in);
@@ -79,10 +79,10 @@ public class Main {
                             newLine.add(String.valueOf(stackChar));
                             stackChar = stack.pop();
                         }
-                        if (stack.isEmpty() && stackChar != '>')
+                        if (stack.isEmpty() && stackChar != '>' && stackChar != '(')
                             newLine.add(String.valueOf(stackChar));
-                        if (stackChar == '>')
-                            stack.push('>');
+                        if (stackChar == '>' || stackChar == '(')
+                            stack.push(stackChar);
                     }
                     else {
                         stack.push(stackChar);
@@ -91,24 +91,15 @@ public class Main {
                 stack.push(tmpChar);
             }
             else {
-                String tmpString = "";
-                while (true) {
-                    // достигнут конец строки
-                    if (pointer == strLen) {
-                        break;
-                    }
-                    tmpChar = line.charAt(pointer);
-                    boolean isSymbol = regEx.matcher(String.valueOf(tmpChar)).find();
-                    //Если является символом - добавляем в конечное представление
-                    if (isSymbol) {
-                        tmpString += tmpChar;
-                    } else {
-                        pointer--;
-                        break;
+                StringBuilder tempString = new StringBuilder();
+                tempString.append(line.charAt(pointer));
+                while (pointer + 1 != line.length() && isVariable(line.charAt(pointer + 1))) {
+                    if (line.charAt(pointer + 1) != ' ' && line.charAt(pointer + 1) != '\t') {
+                        tempString.append(line.charAt(pointer + 1));
                     }
                     pointer++;
                 }
-                newLine.add(tmpString);
+                newLine.add(tempString.toString());
             }
             pointer++;
         }
@@ -117,6 +108,7 @@ public class Main {
             char tmp = stack.pop();
             newLine.add(String.valueOf(tmp));
         }
+
 
         int listLen = newLine.size();
         Node currentNode = null;
@@ -160,8 +152,8 @@ public class Main {
                 }
             }
         }
-        System.out.println(printTree(rootNode));
 
+        System.out.println(printTree(rootNode));
     }
 
     static public String printTree(Node rootNode) {
@@ -178,5 +170,12 @@ public class Main {
         else {
             return rootNode.data;
         }
+    }
+    public static long mem() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+    private static Boolean isVariable(char c) {
+        return c != '!' && c != '&' && c != '|' && c != '-' && c != '(' && c != ')';
     }
 }
