@@ -6,11 +6,12 @@ import java.util.regex.Pattern;
 public class Main {
     public static void main(String[] args) {
         //Pattern regEx = Pattern.compile("[a-zA-Z’0-9]");
+        LinkedList<String> variables = new LinkedList<>();
         Deque<Character> stack = new ArrayDeque<>();
-        Deque<String>  newLine = new LinkedList<>();
+        Deque<String> newLine = new LinkedList<>();
         Scanner scanner = new Scanner(System.in);
         String line = scanner.nextLine();
-        line = line.replaceAll("\\s+","");
+        line = line.replaceAll("\\s+", "");
         int strLen = line.length();
         int pointer = 0;
         while (pointer < strLen) {
@@ -19,7 +20,7 @@ public class Main {
                 stack.push(tmpChar);
             }
             // TODO здесь скорее всего такая же багулина к и с |
-            else if  (tmpChar == '&') {
+            else if (tmpChar == '&') {
                 if (!stack.isEmpty()) {
                     char stackChar = stack.pop();
                     if (stackChar == '!' || stackChar == '&' || stackChar != '(') {
@@ -36,8 +37,7 @@ public class Main {
                     }
                 }
                 stack.push(tmpChar);
-            }
-            else if (tmpChar == ')') {
+            } else if (tmpChar == ')') {
                 char stackChar = ' ';
                 while (true) {
                     stackChar = stack.pop();
@@ -46,19 +46,16 @@ public class Main {
                     }
                     newLine.add(String.valueOf(stackChar));
                 }
-            }
-            else if (tmpChar == '-') {
+            } else if (tmpChar == '-') {
                 pointer++;
                 continue;
-            }
-            else if (tmpChar == '>') {
+            } else if (tmpChar == '>') {
                 if (!stack.isEmpty()) {
                     char stackChar = stack.pop();
                     if (stackChar == '>' || stackChar == '(') {
                         stack.push(stackChar);
-                    }
-                    else {
-                        while (stackChar != '>' && stackChar != '(' && !stack.isEmpty()){
+                    } else {
+                        while (stackChar != '>' && stackChar != '(' && !stack.isEmpty()) {
                             newLine.add(String.valueOf(stackChar));
                             stackChar = stack.pop();
                         }
@@ -69,9 +66,7 @@ public class Main {
                     }
                 }
                 stack.push(tmpChar);
-            }
-
-            else if (tmpChar == '|') {
+            } else if (tmpChar == '|') {
                 if (!stack.isEmpty()) {
                     char stackChar = stack.pop();
                     if (stackChar != '>' && stackChar != '(') {
@@ -83,14 +78,12 @@ public class Main {
                             newLine.add(String.valueOf(stackChar));
                         if (stackChar == '>' || stackChar == '(')
                             stack.push(stackChar);
-                    }
-                    else {
+                    } else {
                         stack.push(stackChar);
                     }
                 }
                 stack.push(tmpChar);
-            }
-            else {
+            } else {
                 StringBuilder tempString = new StringBuilder();
                 tempString.append(line.charAt(pointer));
                 while (pointer + 1 != line.length() && isVariable(line.charAt(pointer + 1))) {
@@ -125,35 +118,62 @@ public class Main {
                         Node childNode = new Node(newLine.pollLast(), currentNode);
                         currentNode.setRightChild(childNode);
                         currentNode = childNode;
+                        if (childNode.isOperand() && !variables.contains(currentNode.data)) {
+                            variables.add(currentNode.data);
+                        }
                         break;
                     } else if (!currentNode.hasLeftChild()) {
                         Node childNode = new Node(newLine.pollLast(), currentNode);
                         currentNode.setLeftChild(childNode);
                         currentNode = childNode;
+                        if (childNode.isOperand() && !variables.contains(currentNode.data)) {
+                            variables.add(currentNode.data);
+                        }
                         break;
                     } else {
                         currentNode = currentNode.parent;
                     }
-                }
-                else if (currentNode.isUnary()) {
+                } else if (currentNode.isUnary()) {
                     if (!currentNode.hasRightChild()) {
                         Node childNode = new Node(newLine.pollLast(), currentNode);
                         currentNode.setRightChild(childNode);
                         currentNode = childNode;
+                        if (childNode.isOperand() && !variables.contains(currentNode.data)) {
+                            variables.add(currentNode.data);
+                        }
                         break;
                     } else {
                         currentNode = currentNode.parent;
                         continue;
                     }
-                }
-                else {
+                } else {
                     currentNode = currentNode.parent;
                     continue;
                 }
             }
         }
 
-        System.out.println(printTree(rootNode));
+
+        int trues = 0;
+        int falses = 0;
+        for (int i = 0; i < Math.pow(2,variables.size()); i++) {
+            if (calcTree(rootNode, variables, new StringBuilder(String.format("%16s", Integer.toBinaryString(i)).replace(' ', '0')).reverse().toString())) {
+                trues++;
+            }
+            else {
+                falses++;
+            }
+        }
+        if (trues == 0) {
+            System.out.println("Unsatisfiable");
+        }
+        else if (falses == 0) {
+            System.out.println("Valid");
+        }
+        else {
+            System.out.println("Satisfiable and invalid, " + trues + " true and " + falses + " false cases");
+        }
+
     }
 
     static public String printTree(Node rootNode) {
@@ -163,19 +183,49 @@ public class Main {
             } else {
                 return "(" + rootNode.data + "," + printTree(rootNode.leftChild) + "," + printTree(rootNode.rightChild) + ")";
             }
-        }
-        else if (rootNode.isUnary()) {
+        } else if (rootNode.isUnary()) {
             return "(" + rootNode.data + printTree(rootNode.rightChild) + ")";
-        }
-        else {
+        } else {
             return rootNode.data;
         }
     }
+    static public boolean calcTree(Node rootNode, LinkedList<String> variables, String valueSet) {
+        if (rootNode.isBinary()) {
+            if (rootNode.data.equals("&")) {
+                return calcTree(rootNode.leftChild, variables, valueSet) && calcTree(rootNode.rightChild, variables, valueSet);
+            }
+            else if (rootNode.data.equals("|")) {
+                return calcTree(rootNode.leftChild, variables, valueSet) || calcTree(rootNode.rightChild, variables, valueSet);
+            }
+            else if (rootNode.data.equals(">")) {
+                return !calcTree(rootNode.leftChild, variables, valueSet) || calcTree(rootNode.rightChild, variables, valueSet);
+            }
+        }
+        else if (rootNode.isUnary()) {
+            return !calcTree(rootNode.rightChild, variables, valueSet);
+        }
+        else {
+            rootNode.setValue(String.valueOf(valueSet.charAt(variables.indexOf(rootNode.data))));
+            if (rootNode.value.equals("0")) {
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        //никогда не придем
+        return true;
+    }
+
     public static long mem() {
         Runtime runtime = Runtime.getRuntime();
         return runtime.totalMemory() - runtime.freeMemory();
     }
+
     private static Boolean isVariable(char c) {
         return c != '!' && c != '&' && c != '|' && c != '-' && c != '(' && c != ')';
     }
+
+
+
 }
